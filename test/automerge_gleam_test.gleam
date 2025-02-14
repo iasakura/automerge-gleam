@@ -1,6 +1,6 @@
-import gleam/io
 import gleeunit
 import gleeunit/should
+import parser/error
 import parser/var_int
 
 pub fn main() {
@@ -35,7 +35,7 @@ pub fn decode_uint2_test() {
 
 pub fn decode_uint_error_test() {
   var_int.decode_uint(<<183:size(8)>>)
-  |> should.equal(Error(var_int.InvalidVarInt))
+  |> should.equal(Error(error.InvalidVarInt))
 }
 
 pub fn encode_int_test() {
