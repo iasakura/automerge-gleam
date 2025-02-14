@@ -1,5 +1,5 @@
-import gleam/float
 import gleam/int
+import parser/error
 
 fn encode_uint_impl(n: Int, acc: BitArray) -> BitArray {
   case n < 0x80 {
@@ -18,58 +18,99 @@ pub fn encode_uint(n) -> BitArray {
   encode_uint_impl(n, <<>>)
 }
 
-pub type ParseError {
-  InvalidVarInt
-}
-
 fn decode_uint_impl(
   bits: BitArray,
   acc: Int,
   cnt: Int,
-) -> Result(#(Int, BitArray), ParseError) {
+) -> Result(#(Int, BitArray), error.ParseError) {
   case bits {
-    <<n:size(8), rest:bits>> if n < 0x80 -> {
+    <<0:size(1), n:size(7), rest:bits>> -> {
       let res = int.bitwise_or(acc, int.bitwise_shift_left(n, cnt * 7))
       Ok(#(res, rest))
     }
-    <<n:size(8), rest:bits>> -> {
-      let n = int.bitwise_and(n, 0x7f)
+    <<1:size(1), n:size(7), rest:bits>> -> {
       decode_uint_impl(
         rest,
         int.bitwise_or(acc, int.bitwise_shift_left(n, cnt * 7)),
         cnt + 1,
       )
     }
-    _ -> Error(InvalidVarInt)
+    _ -> Error(error.InvalidVarInt)
   }
 }
 
-@external(erlang, "math", "log2")
-fn log2(f: Float) -> Float
+fn log2(n: Int) -> Int {
+  case n > 1 {
+    True -> 1 + log2(int.bitwise_shift_right(n, 1))
+    False -> 0
+  }
+}
 
-pub fn decode_uint(bits) -> Result(#(Int, BitArray), ParseError) {
+fn ceil_log2(n: Int) -> Int {
+  case int.bitwise_and(n, n - 1) {
+    0 -> log2(n)
+    _ -> log2(n - 1) + 1
+  }
+}
+
+fn n_bits(n: Int) -> Int {
+  case n < 0 {
+    True -> ceil_log2(-n) + 1
+    False -> ceil_log2(n + 1) + 1
+  }
+}
+
+pub fn decode_uint(bits) -> Result(#(Int, BitArray), error.ParseError) {
   decode_uint_impl(bits, 0, 0)
 }
 
 pub fn encode_int(n: Int) -> BitArray {
-  let n_bits = case n < 0 {
-    True -> float.truncate(float.ceiling(log2(int.to_float(-n)))) + 1
-    False -> float.truncate(float.ceiling(log2(int.to_float(n) +. 1.0)))
-  }
-  let n_bits = { n_bits + 6 } / 7 * 7
-  let bits = <<n:big-size({ n_bits / 7 })-unit(7)>>
-  fill_bits(bits, <<>>)
+  // -2^(m - 1) <= n < 2^(m - 1) -> m >= ceil(log2(n + 1)) + 1 or m >= ceil(log2(-n))
+  let nb = n_bits(n)
+  let nb = { nb + 6 } / 7 * 7
+  let bits = <<n:big-size({ nb / 7 })-unit(7)>>
+  fill_ctrl_bits(bits, <<>>)
 }
 
-fn fill_bits(bits: BitArray, acc: BitArray) -> BitArray {
+fn fill_ctrl_bits(bits: BitArray, acc: BitArray) -> BitArray {
   case bits, acc {
     <<n:size(7), rest:bits>>, <<>> -> {
-      fill_bits(rest, <<0:size(1), n:size(7)>>)
+      fill_ctrl_bits(rest, <<0:size(1), n:size(7)>>)
     }
     <<n:size(7), rest:bits>>, acc -> {
-      fill_bits(rest, <<1:size(1), n:size(7), acc:bits>>)
+      fill_ctrl_bits(rest, <<1:size(1), n:size(7), acc:bits>>)
     }
     <<>>, acc -> acc
     _, _ -> panic as "unreachable"
   }
+}
+
+fn decode_int_impl(
+  bits: BitArray,
+  acc: Int,
+  cnt: Int,
+) -> Result(#(Int, BitArray), error.ParseError) {
+  case bits {
+    <<0:size(1), n:size(7), rest:bits>> -> {
+      let res = int.bitwise_or(acc, int.bitwise_shift_left(n, cnt * 7))
+      let sign = int.bitwise_and(n, 0x40)
+      let res = case sign > 0 {
+        True -> res - int.bitwise_shift_left(1, { cnt + 1 } * 7)
+        False -> res
+      }
+      Ok(#(res, rest))
+    }
+    <<1:size(1), n:size(7), rest:bits>> -> {
+      decode_int_impl(
+        rest,
+        int.bitwise_or(acc, int.bitwise_shift_left(n, cnt * 7)),
+        cnt + 1,
+      )
+    }
+    _ -> Error(error.InvalidVarInt)
+  }
+}
+
+pub fn decode_int(bits) -> Result(#(Int, BitArray), error.ParseError) {
+  decode_int_impl(bits, 0, 0)
 }

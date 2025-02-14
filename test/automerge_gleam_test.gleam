@@ -52,3 +52,18 @@ pub fn encode_int3_test() {
   var_int.encode_int(-1335)
   |> should.equal(<<201:size(8), 117:size(8)>>)
 }
+
+pub fn decode_int_test() {
+  var_int.decode_int(<<8:size(8)>>)
+  |> should.equal(Ok(#(8, <<>>)))
+}
+
+pub fn decode_int2_test() {
+  var_int.decode_int(<<0x7f:size(8)>>)
+  |> should.equal(Ok(#(-1, <<>>)))
+}
+
+pub fn decode_int3_test() {
+  var_int.decode_int(<<201:size(8), 117:size(8)>>)
+  |> should.equal(Ok(#(-1335, <<>>)))
+}
