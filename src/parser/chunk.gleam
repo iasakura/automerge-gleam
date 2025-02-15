@@ -18,7 +18,7 @@ pub type Chunk {
 
 pub fn validate_checksum(content: BitArray, sum: BitArray) -> Bool {
   let actual = crypto.hash(crypto.Sha256, content)
-  actual == sum
+  bit_array.slice(actual, 0, 4) == Ok(sum)
 }
 
 pub fn decode_chunk(
@@ -76,8 +76,7 @@ pub fn decode_chunk(
     }
     1 -> {
       use change <- try(case change.decode_change(contents) {
-        Ok(#(change, <<>>)) -> Ok(change)
-        Ok(#(_, _)) -> Error(error.InvalidChunkLength)
+        Ok(change) -> Ok(change)
         Error(e) -> Error(e)
       })
       Ok(#(ChangeChunk(change), rest))

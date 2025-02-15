@@ -8,4 +8,5 @@ pub type ParseError {
   InvalidDocument
   InvalidChange
   InvalidChunkLength
+  InvalidUTF8
 }
