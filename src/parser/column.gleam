@@ -7,7 +7,6 @@ import gleam/result.{try}
 import parser/error
 import parser/parser.{type Parser, do, error, ret}
 import parser/primitives
-import parser/util
 import parser/value
 import parser/var_int
 import recursive
