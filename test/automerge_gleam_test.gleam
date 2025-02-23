@@ -24,17 +24,17 @@ pub fn encode_uint2_test() {
 }
 
 pub fn decode_uint_test() {
-  var_int.decode_uint(<<8:size(8)>>)
+  var_int.decode_uint()(<<8:size(8)>>)
   |> should.equal(Ok(#(8, <<>>)))
 }
 
 pub fn decode_uint2_test() {
-  var_int.decode_uint(<<183:size(8), 10:size(8)>>)
+  var_int.decode_uint()(<<183:size(8), 10:size(8)>>)
   |> should.equal(Ok(#(1335, <<>>)))
 }
 
 pub fn decode_uint_error_test() {
-  var_int.decode_uint(<<183:size(8)>>)
+  var_int.decode_uint()(<<183:size(8)>>)
   |> should.equal(Error(error.InvalidVarInt))
 }
 
@@ -54,16 +54,16 @@ pub fn encode_int3_test() {
 }
 
 pub fn decode_int_test() {
-  var_int.decode_int(<<8:size(8)>>)
+  var_int.decode_int()(<<8:size(8)>>)
   |> should.equal(Ok(#(8, <<>>)))
 }
 
 pub fn decode_int2_test() {
-  var_int.decode_int(<<0x7f:size(8)>>)
+  var_int.decode_int()(<<0x7f:size(8)>>)
   |> should.equal(Ok(#(-1, <<>>)))
 }
 
 pub fn decode_int3_test() {
-  var_int.decode_int(<<201:size(8), 117:size(8)>>)
+  var_int.decode_int()(<<201:size(8), 117:size(8)>>)
   |> should.equal(Ok(#(-1335, <<>>)))
 }

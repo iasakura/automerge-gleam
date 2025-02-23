@@ -9,4 +9,8 @@ pub type ParseError {
   InvalidChange
   InvalidChunkLength
   InvalidUTF8
+  InvalidLiteral(String)
+  InvalidDeltaColumn
+  MissingValueMetadata
+  InvalidColumnLength
 }

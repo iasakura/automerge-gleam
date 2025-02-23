@@ -1,3 +1,5 @@
+import gleam/bit_array
+import gleam/result.{try}
 import parser/error
 
 pub fn n_bytes(
@@ -10,3 +12,4 @@ pub fn n_bytes(
     _ -> Error(error.InvalidEOF)
   }
 }
+

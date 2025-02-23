@@ -2,11 +2,15 @@ import gleam/bit_array
 import gleam/list
 import gleam/option
 import gleam/result.{try}
+import parser/column
 import parser/error
 import parser/primitives
 import parser/util
 import parser/var_int
 import recursive
+
+pub type ChangeHash =
+  BitArray
 
 pub type Operation {
   Operation(
@@ -24,7 +28,7 @@ pub type Change {
     actor_id: BitArray,
     seq: Int,
     operations: List(Operation),
-    deps: List(Change),
+    deps: List(ChangeHash),
     time: option.Option(Int),
     message: option.Option(String),
     other_actors: List(primitives.ActorId),
@@ -93,6 +97,16 @@ pub fn decode_actor_array(
   iter(0, [], rest)
 }
 
+fn decode_operations(
+  _data: BitArray,
+  _column_metadata: List(column.ColumnMetadata),
+  // for actor columns
+  _actor_id: BitArray,
+  _other_actors: List(primitives.ActorId),
+) -> Result(#(List(Operation), BitArray), error.ParseError) {
+  todo
+}
+
 pub fn decode_change(data: BitArray) -> Result(Change, error.ParseError) {
   use #(deps, rest) <- try(decode_change_hashes(data))
 
@@ -100,7 +114,7 @@ pub fn decode_change(data: BitArray) -> Result(Change, error.ParseError) {
 
   use #(actor_id, rest) <- try(util.n_bytes(actor_len, rest))
 
-  use #(seq, rest) <- try(var_int.decode_uint(rest))
+  use #(seq_num, rest) <- try(var_int.decode_uint(rest))
 
   use #(time, rest) <- try(var_int.decode_int(rest))
 
@@ -112,13 +126,20 @@ pub fn decode_change(data: BitArray) -> Result(Change, error.ParseError) {
 
   use #(other_actors, rest) <- try(decode_actor_array(rest))
 
-  // TODO: parse columns
+  use #(column_metadata, rest) <- try(column.decode_column_metadata(rest))
+
+  use #(ops, rest) <- try(decode_operations(
+    rest,
+    column_metadata,
+    actor_id,
+    other_actors,
+  ))
 
   Ok(Change(
     actor_id,
-    seq,
-    operations: [],
-    deps: [],
+    seq_num,
+    operations: ops,
+    deps: deps,
     time: option.Some(time),
     message: option.Some(message),
     other_actors: other_actors,
