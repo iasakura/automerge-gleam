@@ -1,5 +1,6 @@
 import gleam/int
 import parser/error
+import parser/parser
 
 fn encode_uint_impl(n: Int, acc: BitArray) -> BitArray {
   case n < 0x80 {
@@ -60,8 +61,11 @@ fn n_bits(n: Int) -> Int {
   }
 }
 
-pub fn decode_uint(bits) -> Result(#(Int, BitArray), error.ParseError) {
-  decode_uint_impl(bits, 0, 0)
+pub fn decode_uint() -> parser.Parser(Int) {
+  let parser = fn(bits: BitArray) -> Result(#(Int, BitArray), error.ParseError) {
+    decode_uint_impl(bits, 0, 0)
+  }
+  parser
 }
 
 pub fn encode_int(n: Int) -> BitArray {
@@ -111,6 +115,9 @@ fn decode_int_impl(
   }
 }
 
-pub fn decode_int(bits) -> Result(#(Int, BitArray), error.ParseError) {
-  decode_int_impl(bits, 0, 0)
+pub fn decode_int() -> parser.Parser(Int) {
+  let parser = fn(bits: BitArray) -> Result(#(Int, BitArray), error.ParseError) {
+    decode_int_impl(bits, 0, 0)
+  }
+  parser
 }

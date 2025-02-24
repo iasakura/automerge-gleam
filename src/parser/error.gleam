@@ -8,4 +8,10 @@ pub type ParseError {
   InvalidDocument
   InvalidChange
   InvalidChunkLength
+  InvalidUTF8
+  InvalidLiteral(String)
+  InvalidDeltaColumn
+  MissingValueMetadata
+  InvalidColumnLength
+  NotImplemented
 }
