@@ -1,6 +1,5 @@
 import gleam/bit_array
 import gleam/crypto
-import gleam/result.{try}
 import parser/change
 import parser/document
 import parser/error

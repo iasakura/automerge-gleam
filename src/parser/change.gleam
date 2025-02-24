@@ -36,10 +36,6 @@ pub type Change {
   )
 }
 
-fn decode_change_hashes_loop(i, acc, rest) {
-  todo
-}
-
 pub fn decode_change_hashes() -> Parser(List(ChangeHash)) {
   use n <- do(var_int.decode_uint())
   let size = 32
