@@ -5,7 +5,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result.{try}
 import parser/error
-import parser/parser.{type Parser, do, error, ret}
+import parser/parser.{type Parser, do, ret, ret_error}
 import parser/primitives
 import parser/value
 import parser/var_int
@@ -136,7 +136,7 @@ fn parse_delta_column() -> Parser(List(Int)) {
     })
   case res {
     Ok(#(res, _)) -> ret(list.reverse(res))
-    Error(err) -> error(err)
+    Error(err) -> ret_error(err)
   }
 }
 
@@ -161,7 +161,7 @@ fn parse_string() -> Parser(String) {
   use str <- do(parser.n_bytes(len))
   case bit_array.to_string(str) {
     Ok(str) -> ret(str)
-    Error(_) -> error(error.InvalidUTF8)
+    Error(_) -> ret_error(error.InvalidUTF8)
   }
 }
 
@@ -217,7 +217,7 @@ fn decode_column(
       let id = metadata.column_spec.id
       use value_metadata <- do(case dict.get(value_metadata_map, id) {
         Ok(value_metadata) -> ret(value_metadata)
-        Error(_) -> error(error.MissingValueMetadata)
+        Error(_) -> ret_error(error.MissingValueMetadata)
       })
       use res <- do(parse_value_column(value_metadata))
       ret(ValueColumn(res))
@@ -229,8 +229,8 @@ fn decode_column(
   }
   case parser(data) {
     Ok(#(column, <<>>)) -> ret(column)
-    Ok(#(_, _)) -> error(error.InvalidColumnLength)
-    Error(err) -> error(err)
+    Ok(#(_, _)) -> ret_error(error.InvalidColumnLength)
+    Error(err) -> ret_error(err)
   }
 }
 

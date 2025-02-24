@@ -20,7 +20,7 @@ pub fn ret(value: a) -> Parser(a) {
   }
 }
 
-pub fn error(err: error.ParseError) -> Parser(a) {
+pub fn ret_error(err: error.ParseError) -> Parser(a) {
   fn(_data: BitArray) -> Result(#(a, BitArray), error.ParseError) { Error(err) }
 }
 
@@ -53,7 +53,7 @@ pub fn lit(prefix: BitArray) -> Parser(#()) {
   use data <- do(n_bytes(bit_array.byte_size(prefix)))
   case prefix == data {
     True -> ret(#())
-    False -> error(error.InvalidLiteral(bit_array.inspect(prefix)))
+    False -> ret_error(error.InvalidLiteral(bit_array.inspect(prefix)))
   }
 }
 
@@ -68,4 +68,19 @@ pub fn is_empty() -> Parser(Bool) {
 
 pub fn get_bit_array() -> Parser(BitArray) {
   fn(data: BitArray) { Ok(#(data, <<>>)) }
+}
+
+pub fn take_rest() -> Parser(BitArray) {
+  fn(data: BitArray) { Ok(#(data, <<>>)) }
+}
+
+pub fn peek_size() -> Parser(Int) {
+  fn(data: BitArray) { Ok(#(bit_array.byte_size(data), data)) }
+}
+
+pub fn from_result(result: Result(a, error.ParseError)) -> Parser(a) {
+  case result {
+    Ok(value) -> ret(value)
+    Error(err) -> ret_error(err)
+  }
 }

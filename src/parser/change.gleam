@@ -4,8 +4,8 @@ import gleam/option
 import gleam/result.{try}
 import parser/column
 import parser/error
+import parser/parser.{type Parser, do, ret, ret_error}
 import parser/primitives
-import parser/util
 import parser/var_int
 import recursive
 
@@ -40,29 +40,20 @@ fn decode_change_hashes_loop(i, acc, rest) {
   todo
 }
 
-pub fn decode_change_hashes(
-  data: BitArray,
-) -> Result(#(List(BitArray), BitArray), error.ParseError) {
-  use #(n, rest) <- try(var_int.decode_uint(data))
-  let size = 32 * 8
+pub fn decode_change_hashes() -> Parser(List(ChangeHash)) {
+  use n <- do(var_int.decode_uint())
+  let size = 32
   let iter =
-    recursive.func3(fn(i, acc, rest, rec) -> Result(
-      #(List(BitArray), BitArray),
-      error.ParseError,
-    ) {
+    recursive.func2(fn(i, acc, rec) {
       case i < n {
-        False -> Ok(#(list.reverse(acc), rest))
+        False -> ret(list.reverse(acc))
         True -> {
-          case rest {
-            <<hash:bits-size(size), rest:bits>> ->
-              rec(i + 1, [hash, ..acc], rest)
-            _ -> Error(error.InvalidEOF)
-          }
+          use hash <- do(parser.n_bytes(size))
+          rec(i + 1, [hash, ..acc])
         }
       }
     })
-
-  iter(0, [], rest)
+  iter(0, [])
 }
 
 pub fn decode_message(message: BitArray) -> Result(String, error.ParseError) {
@@ -73,69 +64,63 @@ pub fn decode_message(message: BitArray) -> Result(String, error.ParseError) {
   Ok(message)
 }
 
-pub fn decode_actor_array(
-  data: BitArray,
-) -> Result(#(List(primitives.ActorId), BitArray), error.ParseError) {
-  use #(n, rest) <- try(var_int.decode_uint(data))
+pub fn decode_actor_array() -> Parser(List(primitives.ActorId)) {
+  use n <- do(var_int.decode_uint())
   let iter =
-    recursive.func3(fn(i, acc, rest, rec) -> Result(
-      #(List(primitives.ActorId), BitArray),
-      error.ParseError,
-    ) {
+    recursive.func2(fn(i, acc, rec) {
       case i < n {
-        False -> Ok(#(list.reverse(acc), rest))
+        False -> ret(list.reverse(acc))
         True -> {
           {
-            use #(actor_len, rest) <- try(var_int.decode_uint(rest))
-            use #(actor_id, rest) <- try(util.n_bytes(actor_len, rest))
-            rec(i + 1, [actor_id, ..acc], rest)
+            use actor_len <- do(var_int.decode_uint())
+            use actor_id <- do(parser.n_bytes(actor_len))
+            rec(i + 1, [actor_id, ..acc])
           }
         }
       }
     })
 
-  iter(0, [], rest)
+  iter(0, [])
 }
 
 fn decode_operations(
-  _data: BitArray,
   _column_metadata: List(column.ColumnMetadata),
   // for actor columns
   _actor_id: BitArray,
   _other_actors: List(primitives.ActorId),
-) -> Result(#(List(Operation), BitArray), error.ParseError) {
+) -> Parser(List(Operation)) {
   todo
 }
 
-pub fn decode_change(data: BitArray) -> Result(Change, error.ParseError) {
-  use #(deps, rest) <- try(decode_change_hashes(data))
+pub fn decode_change() -> Parser(Change) {
+  use deps <- do(decode_change_hashes())
 
-  use #(actor_len, rest) <- try(var_int.decode_uint(rest))
+  use actor_len <- do(var_int.decode_uint())
 
-  use #(actor_id, rest) <- try(util.n_bytes(actor_len, rest))
+  use actor_id <- do(parser.n_bytes(actor_len))
 
-  use #(seq_num, rest) <- try(var_int.decode_uint(rest))
+  use seq_num <- do(var_int.decode_uint())
 
-  use #(time, rest) <- try(var_int.decode_int(rest))
+  use time <- do(var_int.decode_int())
 
-  use #(message_len, rest) <- try(var_int.decode_uint(rest))
+  use message_len <- do(var_int.decode_uint())
 
-  use #(message, rest) <- try(util.n_bytes(message_len, rest))
+  use message <- do(parser.n_bytes(message_len))
 
-  use message <- try(decode_message(message))
+  use message <- do(case decode_message(message) {
+    Ok(message) -> ret(message)
+    Error(_) -> ret_error(error.InvalidUTF8)
+  })
 
-  use #(other_actors, rest) <- try(decode_actor_array(rest))
+  use other_actors <- do(decode_actor_array())
 
-  use #(column_metadata, rest) <- try(column.decode_column_metadata(rest))
+  use column_metadata <- do(column.decode_column_metadata())
 
-  use #(ops, rest) <- try(decode_operations(
-    rest,
-    column_metadata,
-    actor_id,
-    other_actors,
-  ))
+  use ops <- do(decode_operations(column_metadata, actor_id, other_actors))
 
-  Ok(Change(
+  use rest <- do(parser.take_rest())
+
+  ret(Change(
     actor_id,
     seq_num,
     operations: ops,
@@ -147,8 +132,6 @@ pub fn decode_change(data: BitArray) -> Result(Change, error.ParseError) {
   ))
 }
 
-pub fn decode_compressed_change(
-  _data: BitArray,
-) -> Result(#(Change, BitArray), error.ParseError) {
+pub fn decode_compressed_change() -> Parser(Change) {
   todo
 }
