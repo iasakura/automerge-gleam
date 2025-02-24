@@ -85,7 +85,7 @@ fn decode_operations(
   _actor_id: BitArray,
   _other_actors: List(primitives.ActorId),
 ) -> Parser(List(Operation)) {
-  todo
+  parser.ret_error(error.NotImplemented)
 }
 
 pub fn decode_change() -> Parser(Change) {
@@ -129,5 +129,5 @@ pub fn decode_change() -> Parser(Change) {
 }
 
 pub fn decode_compressed_change() -> Parser(Change) {
-  todo
+  parser.ret_error(error.NotImplemented)
 }

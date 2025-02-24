@@ -170,13 +170,13 @@ fn parse_string_column() -> Parser(List(Option(String))) {
 }
 
 fn parse_value_metadata_column() -> Parser(List(value.ValueMetadata)) {
-  todo
+  parser.ret_error(error.NotImplemented)
 }
 
 fn parse_value_column(
-  value_metadata: List(value.ValueMetadata),
+  _value_metadata: List(value.ValueMetadata),
 ) -> Parser(List(primitives.RawValue)) {
-  todo
+  parser.ret_error(error.NotImplemented)
 }
 
 fn decode_column(

@@ -13,4 +13,5 @@ pub type ParseError {
   InvalidDeltaColumn
   MissingValueMetadata
   InvalidColumnLength
+  NotImplemented
 }

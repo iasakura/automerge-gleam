@@ -1,4 +1,5 @@
 import parser/change
+import parser/error
 import parser/parser.{type Parser}
 
 pub type Document {
@@ -6,5 +7,5 @@ pub type Document {
 }
 
 pub fn decode_document() -> Parser(Document) {
-  todo
+  parser.ret_error(error.NotImplemented)
 }
