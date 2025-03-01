@@ -170,13 +170,34 @@ fn parse_string_column() -> Parser(List(Option(String))) {
 }
 
 fn parse_value_metadata_column() -> Parser(List(value.ValueMetadata)) {
-  parser.ret_error(error.NotImplemented)
+  use metadata_list <- do(parse_rle(value.parse_value_metadata()))
+  let iter =
+    recursive.func2(fn(list, acc, rec) -> Result(
+      List(value.ValueMetadata),
+      error.ParseError,
+    ) {
+      case list {
+        [] -> Ok(list.reverse(acc))
+        [metadata, ..rest] -> {
+          case metadata {
+            None -> Error(error.InvalidValueMetadata)
+            Some(metadata) -> rec(rest, [metadata, ..acc])
+          }
+        }
+      }
+    })
+  parser.from_result(iter(metadata_list, []))
 }
 
 fn parse_value_column(
-  _value_metadata: List(value.ValueMetadata),
+  value_metadata: List(value.ValueMetadata),
 ) -> Parser(List(primitives.RawValue)) {
-  parser.ret_error(error.NotImplemented)
+  list.fold(value_metadata, ret([]), fn(acc, metadata) {
+    use acc <- do(acc)
+    use value <- do(value.parse_value(metadata))
+    ret([value, ..acc])
+  })
+  |> parser.map(list.reverse)
 }
 
 fn decode_column(

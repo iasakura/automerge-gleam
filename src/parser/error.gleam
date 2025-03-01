@@ -14,4 +14,5 @@ pub type ParseError {
   MissingValueMetadata
   InvalidColumnLength
   NotImplemented
+  InvalidValueMetadata
 }

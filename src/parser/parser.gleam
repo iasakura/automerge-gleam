@@ -84,3 +84,10 @@ pub fn from_result(result: Result(a, error.ParseError)) -> Parser(a) {
     Error(err) -> ret_error(err)
   }
 }
+
+pub fn map(p: Parser(a), f: fn(a) -> b) -> Parser(b) {
+  fn(data: BitArray) {
+    use #(value, rest) <- result.try(p(data))
+    Ok(#(f(value), rest))
+  }
+}
