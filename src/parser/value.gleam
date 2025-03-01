@@ -1,5 +1,7 @@
-import parser/error
+import gleam/bit_array
 import gleam/int
+import gleam/result
+import parser/error
 import parser/parser.{type Parser, do, ret}
 import parser/primitives
 import parser/var_int
@@ -65,10 +67,30 @@ pub fn parse_value(metadata: ValueMetadata) -> Parser(primitives.RawValue) {
       // TODO: implement to float parser
       parser.ret_error(error.NotImplemented)
     }
-    UTF8StringValueMetadata(len) -> do(parser.n_bytes(len))
-    BytesValueMetadata(len) -> do(parser.n_bytes(len))
-    CounterValueMetadata(_) -> do(var_int.decode_uint())
-    TimestampValueMetadata(_) -> do(var_int.decode_uint())
-    UnknownValueMetadata(_) -> ret(primitives.Unknown)
+    UTF8StringValueMetadata(len) -> {
+      use bytes <- do(parser.n_bytes(len))
+      let str =
+        bytes
+        |> bit_array.to_string
+        |> result.map_error(fn(_) { error.InvalidUTF8 })
+      use str <- do(parser.from_result(str))
+      ret(primitives.Str(str))
+    }
+    BytesValueMetadata(len) -> {
+      use bytes <- do(parser.n_bytes(len))
+      ret(primitives.Bytes(bytes))
+    }
+    CounterValueMetadata(_) -> {
+      use n <- do(var_int.decode_int())
+      ret(primitives.Counter(n))
+    }
+    TimestampValueMetadata(_) -> {
+      use n <- do(var_int.decode_int())
+      ret(primitives.Timestamp(n))
+    }
+    UnknownValueMetadata(len) -> {
+      use bytes <- do(parser.n_bytes(len))
+      ret(primitives.Unknown(bytes))
+    }
   }
 }

@@ -192,7 +192,12 @@ fn parse_value_metadata_column() -> Parser(List(value.ValueMetadata)) {
 fn parse_value_column(
   value_metadata: List(value.ValueMetadata),
 ) -> Parser(List(primitives.RawValue)) {
-  
+  list.fold(value_metadata, ret([]), fn(acc, metadata) {
+    use acc <- do(acc)
+    use value <- do(value.parse_value(metadata))
+    ret([value, ..acc])
+  })
+  |> parser.map(list.reverse)
 }
 
 fn decode_column(

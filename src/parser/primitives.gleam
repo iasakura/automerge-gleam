@@ -22,4 +22,5 @@ pub type RawValue {
   Bytes(BitArray)
   Counter(Int)
   Timestamp(Int)
+  Unknown(BitArray)
 }

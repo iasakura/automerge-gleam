@@ -1,4 +1,3 @@
-import gleam/result.{try}
 import parser/error
 
 pub fn n_bytes(
