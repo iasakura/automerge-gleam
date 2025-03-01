@@ -11,24 +11,51 @@ import parser/value
 import parser/var_int
 import recursive
 
+pub type GroupColumn =
+  List(Option(Int))
+
+pub type ActorColumn =
+  List(Option(Int))
+
+pub type ULEBColumn =
+  List(Option(Int))
+
+pub type DeltaColumn =
+  List(Int)
+
+pub type BooleanColumn =
+  List(Bool)
+
+pub type StringColumn =
+  List(Option(String))
+
+pub type ValueMetadataColumn =
+  List(value.ValueMetadata)
+
+pub type ValueColumn =
+  List(primitives.RawValue)
+
+pub type UnknownColumn =
+  BitArray
+
 pub type Column {
   // RLE uLEB
-  GroupColumn(List(Option(Int)))
+  GroupColumn(GroupColumn)
   // Actor index, rle
-  ActorColumn(List(Option(Int)))
+  ActorColumn(ActorColumn)
   // RLE
-  ULEBColumn(List(Option(Int)))
+  ULEBColumn(ULEBColumn)
   // diff RLE
-  DeltaColumn(List(Int))
+  DeltaColumn(DeltaColumn)
   // #false -> #true -> #false -> ...
-  BooleanColumn(List(Bool))
+  BooleanColumn(BooleanColumn)
   // RLE of length-prefixed string
-  StringColumn(List(Option(String)))
+  StringColumn(StringColumn)
   // RLE of metadata
-  ValueMetadataColumn(List(value.ValueMetadata))
+  ValueMetadataColumn(ValueMetadataColumn)
   // specified in metadata
-  ValueColumn(List(primitives.RawValue))
-  UnknownColumn(BitArray)
+  ValueColumn(ValueColumn)
+  UnknownColumn(UnknownColumn)
 }
 
 pub type ColumnType {
@@ -90,7 +117,7 @@ pub fn decode_column_metadata() -> Parser(List(ColumnMetadata)) {
   iter(0, [])
 }
 
-fn parse_rle(parser: Parser(a)) -> Parser(List(Option(a))) {
+fn decode_rle(parser: Parser(a)) -> Parser(List(Option(a))) {
   let iter =
     recursive.func(fn(acc, rec) -> Parser(List(Option(a))) {
       use empty <- do(parser.is_empty())
@@ -120,8 +147,8 @@ fn parse_rle(parser: Parser(a)) -> Parser(List(Option(a))) {
   iter([])
 }
 
-fn parse_delta_column() -> Parser(List(Int)) {
-  use rle <- do(parse_rle(var_int.decode_int()))
+pub fn decode_delta_column() -> Parser(List(Int)) {
+  use rle <- do(decode_rle(var_int.decode_int()))
   let res =
     list.fold(rle, Ok(#([], 0)), fn(acc, value) {
       use acc <- try(acc)
@@ -140,7 +167,7 @@ fn parse_delta_column() -> Parser(List(Int)) {
   }
 }
 
-fn parse_boolean_column() -> Parser(List(Bool)) {
+pub fn decode_boolean_column() -> Parser(List(Bool)) {
   let iter =
     recursive.func(fn(acc, rec) {
       let #(cur, acc) = acc
@@ -156,7 +183,7 @@ fn parse_boolean_column() -> Parser(List(Bool)) {
   iter(#(False, []))
 }
 
-fn parse_string() -> Parser(String) {
+fn decode_string() -> Parser(String) {
   use len <- do(var_int.decode_uint())
   use str <- do(parser.n_bytes(len))
   case bit_array.to_string(str) {
@@ -165,12 +192,12 @@ fn parse_string() -> Parser(String) {
   }
 }
 
-fn parse_string_column() -> Parser(List(Option(String))) {
-  parse_rle(parse_string())
+pub fn decode_string_column() -> Parser(List(Option(String))) {
+  decode_rle(decode_string())
 }
 
-fn parse_value_metadata_column() -> Parser(List(value.ValueMetadata)) {
-  use metadata_list <- do(parse_rle(value.parse_value_metadata()))
+pub fn decode_value_metadata_column() -> Parser(List(value.ValueMetadata)) {
+  use metadata_list <- do(decode_rle(value.decode_value_metadata()))
   let iter =
     recursive.func2(fn(list, acc, rec) -> Result(
       List(value.ValueMetadata),
@@ -189,15 +216,30 @@ fn parse_value_metadata_column() -> Parser(List(value.ValueMetadata)) {
   parser.from_result(iter(metadata_list, []))
 }
 
-fn parse_value_column(
+pub fn decode_value_column(
   value_metadata: List(value.ValueMetadata),
 ) -> Parser(List(primitives.RawValue)) {
   list.fold(value_metadata, ret([]), fn(acc, metadata) {
     use acc <- do(acc)
-    use value <- do(value.parse_value(metadata))
+    use value <- do(value.decode_value(metadata))
     ret([value, ..acc])
   })
   |> parser.map(list.reverse)
+}
+
+pub fn decode_group_column() -> Parser(GroupColumn) {
+  use res <- do(decode_rle(var_int.decode_uint()))
+  ret(res)
+}
+
+pub fn decode_uleb_column() -> Parser(ULEBColumn) {
+  use res <- do(decode_rle(var_int.decode_uint()))
+  ret(res)
+}
+
+pub fn decode_actor_column() -> Parser(ActorColumn) {
+  use res <- do(decode_rle(var_int.decode_uint()))
+  ret(res)
 }
 
 fn decode_column(
@@ -207,31 +249,31 @@ fn decode_column(
   use data <- do(parser.n_bytes(metadata.column_len))
   let parser = case metadata.column_spec.column_type {
     Group -> {
-      use res <- do(parse_rle(var_int.decode_uint()))
+      use res <- do(decode_rle(var_int.decode_uint()))
       ret(GroupColumn(res))
     }
     Actor -> {
-      use res <- do(parse_rle(var_int.decode_uint()))
+      use res <- do(decode_rle(var_int.decode_uint()))
       ret(ActorColumn(res))
     }
     ULEB -> {
-      use res <- do(parse_rle(var_int.decode_uint()))
+      use res <- do(decode_rle(var_int.decode_uint()))
       ret(ULEBColumn(res))
     }
     Delta -> {
-      use res <- do(parse_delta_column())
+      use res <- do(decode_delta_column())
       ret(DeltaColumn(res))
     }
     Boolean -> {
-      use res <- do(parse_boolean_column())
+      use res <- do(decode_boolean_column())
       ret(BooleanColumn(res))
     }
     String -> {
-      use res <- do(parse_string_column())
+      use res <- do(decode_string_column())
       ret(StringColumn(res))
     }
     ValueMetadata -> {
-      use res <- do(parse_value_metadata_column())
+      use res <- do(decode_value_metadata_column())
       ret(ValueMetadataColumn(res))
     }
     Value -> {
@@ -240,7 +282,7 @@ fn decode_column(
         Ok(value_metadata) -> ret(value_metadata)
         Error(_) -> ret_error(error.MissingValueMetadata)
       })
-      use res <- do(parse_value_column(value_metadata))
+      use res <- do(decode_value_column(value_metadata))
       ret(ValueColumn(res))
     }
     Unknown -> {

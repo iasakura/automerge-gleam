@@ -11,8 +11,29 @@ pub type ParseError {
   InvalidUTF8
   InvalidLiteral(String)
   InvalidDeltaColumn
+  InvalidFloat
   MissingValueMetadata
   InvalidColumnLength
-  NotImplemented
+  TodoNotImplemented
   InvalidValueMetadata
+  MissingObjectActorId
+  MissingObjectCounter
+  MissingKeyActorId
+  MissingKeyCounter
+  MissingKeyString
+  MissingActorId
+  MissingCounter
+  MissingInsert
+  MissingAction
+  MissingValue
+  MissingPredecessorGroup
+  MissingPredecessorActorId
+  MissingPredecessorCounter
+  MissingSuccessorGroup
+  MissingSuccessorActorId
+  MissingSuccessorCounter
+  InvalidOperationColumns
+  InvalidActorIndex
+  InvalidKey
+  InvalidAction
 }

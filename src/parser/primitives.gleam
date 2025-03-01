@@ -1,11 +1,16 @@
 pub type ActorId =
   BitArray
 
-pub type OperationId =
-  #(ActorId, Int)
+pub type OperationId {
+  OperationId(ActorId, Int)
+}
 
 pub type ObjectId =
   OperationId
+
+pub fn object_id(actor_id: ActorId, counter: Int) -> ObjectId {
+  OperationId(actor_id, counter)
+}
 
 pub type Key {
   StringKey(key: String)
@@ -23,4 +28,13 @@ pub type RawValue {
   Counter(Int)
   Timestamp(Int)
   Unknown(BitArray)
+}
+
+pub type Action {
+  MakeMap
+  Set
+  MakeList
+  Del
+  MakeText
+  Inc
 }

@@ -7,5 +7,5 @@ pub type Document {
 }
 
 pub fn decode_document() -> Parser(Document) {
-  parser.ret_error(error.NotImplemented)
+  parser.ret_error(error.TodoNotImplemented)
 }

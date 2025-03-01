@@ -31,7 +31,7 @@ pub type ValueMetadata {
   UnknownValueMetadata(len: Int)
 }
 
-pub fn parse_value_metadata() -> Parser(ValueMetadata) {
+pub fn decode_value_metadata() -> Parser(ValueMetadata) {
   use metadata <- do(var_int.decode_uint())
   let type_ = int.bitwise_and(metadata, 0b1111)
   let len = int.bitwise_shift_right(metadata, 4)
@@ -50,7 +50,7 @@ pub fn parse_value_metadata() -> Parser(ValueMetadata) {
   }
 }
 
-pub fn parse_value(metadata: ValueMetadata) -> Parser(primitives.RawValue) {
+pub fn decode_value(metadata: ValueMetadata) -> Parser(primitives.RawValue) {
   case metadata {
     NullValueMetadata(_) -> ret(primitives.Null)
     FalseValueMetadata(_) -> ret(primitives.Bool(False))
@@ -64,14 +64,18 @@ pub fn parse_value(metadata: ValueMetadata) -> Parser(primitives.RawValue) {
       ret(primitives.Int(n))
     }
     FloatValueMetadata(_) -> {
-      // TODO: implement to float parser
-      parser.ret_error(error.NotImplemented)
+      use bin <- do(parser.n_bytes(8))
+      case bin {
+        <<n:float>> -> ret(primitives.Float(n))
+        _ -> parser.ret_error(error.InvalidFloat)
+      }
     }
     UTF8StringValueMetadata(len) -> {
       use bytes <- do(parser.n_bytes(len))
       let str =
         bytes
         |> bit_array.to_string
+        // TODO: replace invalid utf8 characters with U+FFFD
         |> result.map_error(fn(_) { error.InvalidUTF8 })
       use str <- do(parser.from_result(str))
       ret(primitives.Str(str))
