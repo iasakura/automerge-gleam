@@ -429,7 +429,7 @@ fn columns_to_records(
       [counter, ..counters],
       [insert, ..inserts],
       [action, ..actions],
-      [value_metadata, ..value_metadatas],
+      [_value_metadata, ..value_metadatas],
       [value, ..values],
       [predecessor_group, ..predecessor_groups],
       [successor_group, ..successor_groups]
