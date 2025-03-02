@@ -3,11 +3,12 @@ import gleam/crypto
 import parser/change
 import parser/document
 import parser/error
+import parser/operation
 import parser/parser.{type Parser, do, ret}
 import parser/var_int
 
 pub type Document {
-  Document(changes: List(change.Change), operations: List(change.Operation))
+  Document(changes: List(change.Change), operations: List(operation.Operation))
 }
 
 pub type Chunk {

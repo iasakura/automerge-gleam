@@ -4,6 +4,7 @@ import gleam/option
 import gleam/result.{try}
 import parser/column
 import parser/error
+import parser/operation
 import parser/parser.{type Parser, do, ret, ret_error}
 import parser/primitives
 import parser/var_int
@@ -12,22 +13,11 @@ import recursive
 pub type ChangeHash =
   BitArray
 
-pub type Operation {
-  Operation(
-    actor_id: primitives.ObjectId,
-    key: primitives.Key,
-    id: primitives.OperationId,
-    insert: Bool,
-    value: option.Option(primitives.RawValue),
-    successors: List(Operation),
-  )
-}
-
 pub type Change {
   Change(
     actor_id: BitArray,
     seq: Int,
-    operations: List(Operation),
+    operations: List(operation.Operation),
     deps: List(ChangeHash),
     time: option.Option(Int),
     message: option.Option(String),
@@ -79,15 +69,6 @@ pub fn decode_actor_array() -> Parser(List(primitives.ActorId)) {
   iter(0, [])
 }
 
-fn decode_operations(
-  _column_metadata: List(column.ColumnMetadata),
-  // for actor columns
-  _actor_id: BitArray,
-  _other_actors: List(primitives.ActorId),
-) -> Parser(List(Operation)) {
-  parser.ret_error(error.NotImplemented)
-}
-
 pub fn decode_change() -> Parser(Change) {
   use deps <- do(decode_change_hashes())
 
@@ -112,7 +93,11 @@ pub fn decode_change() -> Parser(Change) {
 
   use column_metadata <- do(column.decode_column_metadata())
 
-  use ops <- do(decode_operations(column_metadata, actor_id, other_actors))
+  use ops <- do(operation.decode_operations(
+    column_metadata,
+    actor_id,
+    other_actors,
+  ))
 
   use rest <- do(parser.take_rest())
 
@@ -129,5 +114,5 @@ pub fn decode_change() -> Parser(Change) {
 }
 
 pub fn decode_compressed_change() -> Parser(Change) {
-  parser.ret_error(error.NotImplemented)
+  parser.ret_error(error.TodoNotImplemented)
 }
