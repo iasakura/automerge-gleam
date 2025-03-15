@@ -91,3 +91,11 @@ pub fn map(p: Parser(a), f: fn(a) -> b) -> Parser(b) {
     Ok(#(f(value), rest))
   }
 }
+
+pub fn run(p: Parser(a), data: BitArray) -> Result(a, error.ParseError) {
+  case p(data) {
+    Ok(#(value, <<>>)) -> Ok(value)
+    Ok(#(_, _)) -> Error(error.InvalidEOF)
+    Error(err) -> Error(err)
+  }
+}

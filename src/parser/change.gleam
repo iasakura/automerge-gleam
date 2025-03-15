@@ -17,6 +17,7 @@ pub type Change {
   Change(
     actor_id: BitArray,
     seq: Int,
+    start_op: Int,
     operations: List(operation.Operation),
     deps: List(ChangeHash),
     time: option.Option(Int),
@@ -78,6 +79,8 @@ pub fn decode_change() -> Parser(Change) {
 
   use seq_num <- do(var_int.decode_uint())
 
+  use start_op <- do(var_int.decode_uint())
+
   use time <- do(var_int.decode_int())
 
   use message_len <- do(var_int.decode_uint())
@@ -104,6 +107,7 @@ pub fn decode_change() -> Parser(Change) {
   ret(Change(
     actor_id,
     seq_num,
+    start_op,
     operations: ops,
     deps: deps,
     time: option.Some(time),

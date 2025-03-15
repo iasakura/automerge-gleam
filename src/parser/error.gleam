@@ -35,5 +35,8 @@ pub type ParseError {
   InvalidOperationColumns
   InvalidActorIndex
   InvalidKey
+  InvalidId
   InvalidAction
+  InvalidPredecessors
+  InvalidSuccessors
 }
