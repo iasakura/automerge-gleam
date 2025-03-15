@@ -1,7 +1,12 @@
+import gleam/io
+import gleam/string
 import gleeunit
 import gleeunit/should
+import parser/chunk
 import parser/error
+import parser/parser
 import parser/var_int
+import simplifile
 
 pub fn main() {
   gleeunit.main()
@@ -66,4 +71,16 @@ pub fn decode_int2_test() {
 pub fn decode_int3_test() {
   var_int.decode_int()(<<201:size(8), 117:size(8)>>)
   |> should.equal(Ok(#(-1335, <<>>)))
+}
+
+pub fn decode_change1_test() {
+  let assert Ok(chunk) = simplifile.read_bits("test-gen/change1.bin")
+  let assert Ok(res) = chunk.decode_chunk() |> parser.run(chunk)
+  io.debug(string.inspect(res))
+}
+
+pub fn decode_change2_test() {
+  let assert Ok(chunk) = simplifile.read_bits("test-gen/change2.bin")
+  let assert Ok(res) = chunk.decode_chunk() |> parser.run(chunk)
+  io.debug(string.inspect(res))
 }

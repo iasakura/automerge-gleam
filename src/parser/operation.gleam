@@ -5,12 +5,14 @@ import parser/column
 import parser/error
 import parser/parser.{type Parser, do, ret, ret_error}
 import parser/primitives
+import parser/value
 
 pub type Operation {
   Operation(
     object_id: Option(primitives.ObjectId),
     key: primitives.Key,
-    id: primitives.OperationId,
+    // only exists in specification, but ref impl doesn't have it
+    // id: primitives.OperationId,
     insert: Bool,
     action: primitives.Action,
     value: primitives.RawValue,
@@ -71,14 +73,14 @@ pub fn decode_operation_columns(
           use col <- do(column.decode_string_column())
           ret([KeyString(col), ..acc])
         }
-        2, column.Actor -> {
-          use col <- do(column.decode_actor_column())
-          ret([ActorId(col), ..acc])
-        }
-        2, column.Delta -> {
-          use col <- do(column.decode_delta_column())
-          ret([Counter(col), ..acc])
-        }
+        // 2, column.Actor -> {
+        //   use col <- do(column.decode_actor_column())
+        //   ret([ActorId(col), ..acc])
+        // }
+        // 2, column.Delta -> {
+        //   use col <- do(column.decode_delta_column())
+        //   ret([Counter(col), ..acc])
+        // }
         3, column.Boolean -> {
           use col <- do(column.decode_boolean_column())
           ret([Insert(col), ..acc])
@@ -148,20 +150,14 @@ pub fn decode_operation_columns(
   ret(columns)
 }
 
-fn get_from_columns(
-  columns: List(a),
-  get: fn(a) -> Option(b),
-  error: error.ParseError,
-) -> Parser(b) {
-  parser.from_result(
-    list.find_map(columns, fn(column) {
-      case get(column) {
-        Some(column) -> Ok(column)
-        None -> Error(Nil)
-      }
-    })
-    |> result.map_error(fn(_) { error }),
-  )
+fn get_from_columns(columns: List(a), get: fn(a) -> Option(b)) -> Option(b) {
+  list.find_map(columns, fn(column) {
+    case get(column) {
+      Some(column) -> Ok(column)
+      None -> Error(Nil)
+    }
+  })
+  |> option.from_result
 }
 
 pub fn decode_operations(
@@ -171,176 +167,126 @@ pub fn decode_operations(
   other_actors: List(primitives.ActorId),
 ) -> Parser(List(Operation)) {
   use columns <- do(decode_operation_columns(column_metadata))
-  use object_actor_id <- do(get_from_columns(
-    columns,
-    fn(column) {
+  let object_actor_id =
+    list.find_map(columns, fn(column) {
       case column {
-        ObjectActorId(column) -> Some(column)
-        _ -> None
+        ObjectActorId(column) -> Ok(column)
+        _ -> Error(Nil)
       }
-    },
-    error.MissingObjectActorId,
-  ))
-  use object_counter <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+    |> option.from_result
+  let object_counter =
+    get_from_columns(columns, fn(column) {
       case column {
         ObjectCounter(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingObjectCounter,
-  ))
-  use key_actor_id <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let key_actor_id =
+    get_from_columns(columns, fn(column) {
       case column {
         KeyActorId(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingKeyActorId,
-  ))
-  use key_counter <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let key_counter =
+    get_from_columns(columns, fn(column) {
       case column {
         KeyCounter(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingKeyCounter,
-  ))
-  use key_string <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let key_string =
+    get_from_columns(columns, fn(column) {
       case column {
         KeyString(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingKeyString,
-  ))
-  use op_actor_id <- do(get_from_columns(
-    columns,
-    fn(column) {
-      case column {
-        ActorId(column) -> Some(column)
-        _ -> None
-      }
-    },
-    error.MissingActorId,
-  ))
-  use counter <- do(get_from_columns(
-    columns,
-    fn(column) {
-      case column {
-        Counter(column) -> Some(column)
-        _ -> None
-      }
-    },
-    error.MissingCounter,
-  ))
-  use insert <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  // let op_actor_id =
+  //   get_from_columns(columns, fn(column) {
+  //     case column {
+  //       ActorId(column) -> Some(column)
+  //       _ -> None
+  //     }
+  //   })
+  // let counter =
+  //   get_from_columns(columns, fn(column) {
+  //     case column {
+  //       Counter(column) -> Some(column)
+  //       _ -> None
+  //     }
+  //   })
+  let insert =
+    get_from_columns(columns, fn(column) {
       case column {
         Insert(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingInsert,
-  ))
-  use action <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let action =
+    get_from_columns(columns, fn(column) {
       case column {
         Action(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingAction,
-  ))
-  use value_metadata <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let value_metadata =
+    get_from_columns(columns, fn(column) {
       case column {
         ValueMetadata(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingValueMetadata,
-  ))
-  use value <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let value =
+    get_from_columns(columns, fn(column) {
       case column {
         Value(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingValue,
-  ))
-  use predecessor_group <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let predecessor_group =
+    get_from_columns(columns, fn(column) {
       case column {
         PredecessorGroup(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingPredecessorGroup,
-  ))
-  use predecessor_actor_id <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let predecessor_actor_id =
+    get_from_columns(columns, fn(column) {
       case column {
         PredecessorActorId(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingPredecessorActorId,
-  ))
-  use predecessor_counter <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let predecessor_counter =
+    get_from_columns(columns, fn(column) {
       case column {
         PredecessorCounter(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingPredecessorCounter,
-  ))
-  use successor_group <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let successor_group =
+    get_from_columns(columns, fn(column) {
       case column {
         SuccessorGroup(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingSuccessorGroup,
-  ))
-  use successor_actor_id <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let successor_actor_id =
+    get_from_columns(columns, fn(column) {
       case column {
         SuccessorActorId(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingSuccessorActorId,
-  ))
-  use successor_counter <- do(get_from_columns(
-    columns,
-    fn(column) {
+    })
+  let successor_counter =
+    get_from_columns(columns, fn(column) {
       case column {
         SuccessorCounter(column) -> Some(column)
         _ -> None
       }
-    },
-    error.MissingSuccessorCounter,
-  ))
+    })
   let other_columns =
     list.filter_map(columns, fn(column) {
       case column {
@@ -356,8 +302,8 @@ pub fn decode_operations(
     key_actor_id,
     key_counter,
     key_string,
-    op_actor_id,
-    counter,
+    // op_actor_id,
+    // counter,
     insert,
     action,
     value_metadata,
@@ -373,71 +319,112 @@ pub fn decode_operations(
 }
 
 fn get_actor_id(
-  actor_id: Int,
+  actor_idx: Int,
+  actor_id: primitives.ActorId,
   other_actors: List(primitives.ActorId),
 ) -> Result(primitives.ActorId, error.ParseError) {
-  case actor_id, other_actors {
+  case actor_idx {
+    0 -> Ok(actor_id)
+    n if n > 0 -> get_actor_id_from_other_actors(n - 1, other_actors)
+    _ -> Error(error.InvalidActorIndex)
+  }
+}
+
+fn get_actor_id_from_other_actors(
+  actor_idx: Int,
+  other_actors: List(primitives.ActorId),
+) -> Result(primitives.ActorId, error.ParseError) {
+  case actor_idx, other_actors {
     0, [actor_id, ..] -> Ok(actor_id)
-    n, [_, ..other_actors] if n > 0 -> get_actor_id(n - 1, other_actors)
+    n, [_, ..other_actors] if n > 0 ->
+      get_actor_id_from_other_actors(n - 1, other_actors)
     _, _ -> Error(error.InvalidActorIndex)
+  }
+}
+
+fn to_cons(x: Option(List(a)), nil: a) -> Option(#(a, Option(List(a)))) {
+  case x {
+    Some([head, ..tail]) -> Some(#(head, Some(tail)))
+    Some([]) -> None
+    None -> Some(#(nil, None))
+  }
+}
+
+fn to_nil(x: Option(List(a))) -> Bool {
+  case x {
+    Some([_, ..]) -> False
+    Some([]) -> True
+    None -> True
+  }
+}
+
+fn split(x: Option(List(a)), nil: a, n: Int) -> #(List(a), Option(List(a))) {
+  case x {
+    Some(x) -> {
+      let #(head, tail) = list.split(x, n)
+      #(head, Some(tail))
+    }
+    None -> #(list.repeat(nil, n), None)
   }
 }
 
 fn columns_to_records(
   actor_id: BitArray,
   other_actors: List(primitives.ActorId),
-  object_actor_ids: column.ActorColumn,
-  object_counters: column.ULEBColumn,
-  key_actor_ids: column.ActorColumn,
-  key_counters: column.ULEBColumn,
-  key_strings: column.StringColumn,
-  op_actor_ids: column.ActorColumn,
-  counters: column.DeltaColumn,
-  inserts: column.BooleanColumn,
-  actions: column.ULEBColumn,
-  value_metadatas: column.ValueMetadataColumn,
-  values: column.ValueColumn,
-  predecessor_groups: column.GroupColumn,
-  predecessor_actor_ids: column.ActorColumn,
-  predecessor_counters: column.DeltaColumn,
-  successor_groups: column.GroupColumn,
-  successor_actor_ids: column.ActorColumn,
-  successor_counters: column.DeltaColumn,
+  object_actor_ids: Option(column.ActorColumn),
+  object_counters: Option(column.ULEBColumn),
+  key_actor_ids: Option(column.ActorColumn),
+  key_counters: Option(column.ULEBColumn),
+  key_strings: Option(column.StringColumn),
+  // op_actor_ids: Option(column.ActorColumn),
+  // counters: Option(column.DeltaColumn),
+  inserts: Option(column.BooleanColumn),
+  actions: Option(column.ULEBColumn),
+  value_metadatas: Option(column.ValueMetadataColumn),
+  values: Option(column.ValueColumn),
+  predecessor_groups: Option(column.GroupColumn),
+  predecessor_actor_ids: Option(column.ActorColumn),
+  predecessor_counters: Option(column.DeltaColumn),
+  successor_groups: Option(column.GroupColumn),
+  successor_actor_ids: Option(column.ActorColumn),
+  successor_counters: Option(column.DeltaColumn),
   other_columns: List(#(column.ColumnMetadata, BitArray)),
 ) -> Result(List(Operation), error.ParseError) {
   case
-    object_actor_ids,
-    object_counters,
-    key_actor_ids,
-    key_counters,
-    key_strings,
-    op_actor_ids,
-    counters,
-    inserts,
-    actions,
-    value_metadatas,
-    values,
-    predecessor_groups,
-    successor_groups
+    to_cons(object_actor_ids, None),
+    to_cons(object_counters, None),
+    to_cons(key_actor_ids, None),
+    to_cons(key_counters, None),
+    to_cons(key_strings, None),
+    // to_cons(op_actor_ids, None),
+    // to_cons(counters, 0),
+    to_cons(inserts, False),
+    to_cons(actions, None),
+    // ?
+    to_cons(value_metadatas, value.NullValueMetadata(0)),
+    to_cons(values, primitives.Null),
+    to_cons(predecessor_groups, None),
+    to_cons(successor_groups, None)
   {
-    [object_actor_id, ..object_actor_ids],
-      [object_counter, ..object_counters],
-      [key_actor_id, ..key_actor_ids],
-      [key_counter, ..key_counters],
-      [key_string, ..key_strings],
-      [op_actor_id, ..op_actor_ids],
-      [counter, ..counters],
-      [insert, ..inserts],
-      [action, ..actions],
-      [_value_metadata, ..value_metadatas],
-      [value, ..values],
-      [predecessor_group, ..predecessor_groups],
-      [successor_group, ..successor_groups]
+    Some(#(object_actor_id, object_actor_ids)),
+      Some(#(object_counter, object_counters)),
+      Some(#(key_actor_id, key_actor_ids)),
+      Some(#(key_counter, key_counters)),
+      Some(#(key_string, key_strings)),
+      // Some(#(op_actor_id, op_actor_ids)),
+      // Some(#(counter, counters)),
+      Some(#(insert, inserts)),
+      Some(#(action, actions)),
+      Some(#(_value_metadata, value_metadatas)),
+      Some(#(value, values)),
+      Some(#(predecessor_group, predecessor_groups)),
+      Some(#(successor_group, successor_groups))
     -> {
       use object_id <- try(case object_actor_id, object_counter {
         Some(object_actor_id), Some(object_counter) -> {
           use object_actor_id <- result.try(get_actor_id(
             object_actor_id,
+            actor_id,
             other_actors,
           ))
           Ok(Some(primitives.object_id(object_actor_id, object_counter)))
@@ -453,6 +440,7 @@ fn columns_to_records(
             Some(key_actor_id), Some(key_counter) -> {
               use key_actor_id <- result.try(get_actor_id(
                 key_actor_id,
+                actor_id,
                 other_actors,
               ))
               Ok(
@@ -465,39 +453,43 @@ fn columns_to_records(
             _, _ -> Error(error.InvalidKey)
           }
       })
-      use id <- try(case op_actor_id, counter {
-        Some(op_actor_id), counter -> {
-          use op_actor_id <- result.try(get_actor_id(op_actor_id, other_actors))
-          Ok(primitives.OperationId(op_actor_id, counter))
-        }
-        _, _ -> Error(error.InvalidKey)
-      })
+      // use id <- try(case op_actor_id, counter {
+      //   Some(op_actor_id), counter -> {
+      //     use op_actor_id <- result.try(get_actor_id(op_actor_id, other_actors))
+      //     Ok(primitives.OperationId(op_actor_id, counter))
+      //   }
+      //   _, _ -> Error(error.InvalidId)
+      // })
       use #(predecessors, predecessor_actor_ids, predecessor_counters) <- try(case
         predecessor_group
       {
         None -> Ok(#(None, predecessor_actor_ids, predecessor_counters))
         Some(n) -> {
           let #(actor_ids, predecessor_actor_id) =
-            list.split(predecessor_actor_ids, n)
+            split(predecessor_actor_ids, None, n)
           use Nil <- try(case list.length(actor_ids) == n {
-            False -> Error(error.InvalidOperationColumns)
+            False -> Error(error.InvalidPredecessors)
             True -> Ok(Nil)
           })
           let #(counters, predecessor_counter) =
-            list.split(predecessor_counters, n)
+            split(predecessor_counters, 0, n)
           use Nil <- try(case list.length(counters) == n {
-            False -> Error(error.InvalidOperationColumns)
+            False -> Error(error.InvalidPredecessors)
             True -> Ok(Nil)
           })
           use ids <- try(
             list.zip(actor_ids, counters)
             |> list.try_map(fn(pair) {
-              let #(actor_id, counter) = pair
-              use actor_id <- result.try(case actor_id {
+              let #(actor_idx, counter) = pair
+              use actor_idx <- result.try(case actor_idx {
                 Some(actor_id) -> Ok(actor_id)
                 None -> Error(error.MissingPredecessorActorId)
               })
-              use actor_id <- result.try(get_actor_id(actor_id, other_actors))
+              use actor_id <- result.try(get_actor_id(
+                actor_idx,
+                actor_id,
+                other_actors,
+              ))
               Ok(primitives.OperationId(actor_id, counter))
             }),
           )
@@ -521,25 +513,29 @@ fn columns_to_records(
         None -> Ok(#(None, successor_actor_ids, successor_counters))
         Some(n) -> {
           let #(actor_ids, successor_actor_id) =
-            list.split(successor_actor_ids, n)
+            split(successor_actor_ids, None, n)
           use Nil <- try(case list.length(actor_ids) == n {
-            False -> Error(error.InvalidOperationColumns)
+            False -> Error(error.InvalidSuccessors)
             True -> Ok(Nil)
           })
-          let #(counters, successor_counter) = list.split(successor_counters, n)
+          let #(counters, successor_counter) = split(successor_counters, 0, n)
           use Nil <- try(case list.length(counters) == n {
-            False -> Error(error.InvalidOperationColumns)
+            False -> Error(error.InvalidSuccessors)
             True -> Ok(Nil)
           })
           use ids <- try(
             list.zip(actor_ids, counters)
             |> list.try_map(fn(pair) {
-              let #(actor_id, counter) = pair
-              use actor_id <- result.try(case actor_id {
+              let #(actor_idx, counter) = pair
+              use actor_idx <- result.try(case actor_idx {
                 Some(actor_id) -> Ok(actor_id)
                 None -> Error(error.MissingSuccessorActorId)
               })
-              use actor_id <- result.try(get_actor_id(actor_id, other_actors))
+              use actor_id <- result.try(get_actor_id(
+                actor_idx,
+                actor_id,
+                other_actors,
+              ))
               Ok(primitives.OperationId(actor_id, counter))
             }),
           )
@@ -554,8 +550,8 @@ fn columns_to_records(
         key_actor_ids,
         key_counters,
         key_strings,
-        op_actor_ids,
-        counters,
+        // op_actor_ids,
+        // counters,
         inserts,
         actions,
         value_metadatas,
@@ -572,7 +568,7 @@ fn columns_to_records(
         Operation(
           object_id,
           key,
-          id,
+          // id,
           insert,
           action,
           value,
@@ -582,8 +578,27 @@ fn columns_to_records(
         ..rest
       ])
     }
-    [], [], [], [], [], [], [], [], [], [], [], [], [] -> Ok([])
-    _, _, _, _, _, _, _, _, _, _, _, _, _ ->
-      Error(error.InvalidOperationColumns)
+    _, _, _, _, _, _, _, _, _, _, _ -> {
+      case
+        to_nil(object_actor_ids),
+        to_nil(object_counters),
+        to_nil(key_actor_ids),
+        to_nil(key_counters),
+        to_nil(key_strings),
+        // to_nil(op_actor_ids),
+        // to_nil(counters),
+        to_nil(inserts),
+        to_nil(actions),
+        // ?
+        to_nil(value_metadatas),
+        to_nil(values),
+        to_nil(predecessor_groups),
+        to_nil(successor_groups)
+      {
+        True, True, True, True, True, True, True, True, True, True, True ->
+          Ok([])
+        _, _, _, _, _, _, _, _, _, _, _ -> Error(error.InvalidOperationColumns)
+      }
+    }
   }
 }
