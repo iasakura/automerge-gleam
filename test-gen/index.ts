@@ -16,8 +16,8 @@ const gen1 = () => {
 
 const gen2 = () => {
   let doc1 = A.from({ a: 1, b: {} }, { actor: "414141" });
-  doc1 = A.change(doc1, (doc) => (doc.a = 2));
-  doc1 = A.change(doc1, (doc) => (doc.b = { a: 3 }));
+  doc1 = A.change(doc1, { time: 1741534262 }, (doc) => (doc.a = 2));
+  doc1 = A.change(doc1, { time: 1741534262 }, (doc) => (doc.b = { a: 3 }));
 
   const changes = A.getAllChanges(doc1);
 
